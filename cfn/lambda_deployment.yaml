@@ -1,0 +1,106 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Lambda deployment
+Parameters:
+  NetworkStackName:
+    Type: String
+    Description: Name of the stack setting up network
+  KinesisStreamName:
+    Type: String
+    Description: Stream from which records will be consumed
+  KinesisFirehoseName:
+    Type: String
+    Description: Kinesis Firehose name to which records will be inserted
+  S3BucketWithCode:
+    Type: String
+    Description: S3 location where the lambda artifact is placed
+  LambdaArtifactVersion:
+    Type: String
+    Description: Version of the lambda artifact version to run
+    Default: latest
+  S3KeyArtifact:
+    Type: String
+    Description: Key where the lambda artifact is stored
+    Default: '/'
+  LambdaHandler:
+    Type: String
+    Description: Method that will handle streams polled by Lambda
+  KinesisStreamBatchingWindowSeconds:
+    Type: String
+    Description: The maximum amount of time to gather records before invoking the function, in seconds.
+    Default: "0"
+  LambdaRuntime:
+    Type: String
+    Default: java8
+    Description: Runtime to use -> dotnetcore2.1 | dotnetcore3.1 | go1.x | java11 | java8 | java8.al2 | nodejs10.x | nodejs12.x | provided | provided.al2 | python2.7 | python3.6 | python3.7 | python3.8 | ruby2.5 | ruby2.7
+Resources:
+  LambdaSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for lambda reading from Kinesis stream
+      GroupName: LambdaKinesisStreamSG
+      SecurityGroupEgress:
+      - CidrIp: 0.0.0.0/0
+      - ToPort: -1
+      - IpProtocol: -1
+
+  LambdaKinesisStreamEventSourceMapping:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      EventSourceArn: !Sub 'arn:aws:kinesis:${AWS::Region}:${AWS::AccountId}:stream/${KinesisStreamName}'
+      FunctionName: !Ref LambdaToFirehose
+      Enabled: true
+      MaximumBatchingWindowInSeconds: !Ref KinesisStreamBatchingWindowSeconds
+      StartingPosition: LATEST
+
+  LambdaToFirehose:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: !Ref S3BucketWithCode
+        S3ObjectVersion: !Ref LambdaArtifactVersion
+        S3Key: !Ref S3KeyArtifact
+      Handler: !Ref LambdaHandler
+      Environment:
+        Variables:
+          AwsRegion: !Ref AWS::Region
+          AccountId: !Ref AWS::AccountId
+          KinesisStreamName: !Ref KinesisStreamName
+          KinesisFirehoseName: !Ref KinesisFirehoseName
+      VpcConfig:
+        SecurityGroupIds:
+        - !Ref LambdaSecurityGroup
+        SubnetIds:
+        - Fn::ImportValue: !Sub "${NetworkStackName}:PrivateNetworkOne"
+        - Fn::ImportValue: !Sub "${NetworkStackName}:PrivateNetworkTwo"
+      Runtime: !Ref LambdaRuntime
+
+  LambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Path: /
+      Policies:
+      - PolicyName: AmazonEcsPutRecordToKinesis
+        PolicyDocument:
+          Statement:
+          - Effect: Allow
+            Action:
+            - 'kinesis:GetShardIterator'
+            - 'kinesis:GetRecords'
+            - 'kinesis:DescribeStreamSummary'
+            - 'kinesis:ListStreams'
+            - 'firehose:PutRecord'
+            - 'firehose:PutRecordBatch'
+            - 'firehose:UpdateDestination'
+          Resource:
+          - !Sub 'arn:aws:kinesis:${AWS::Region}:${AWS::AccountId}:stream/${KinesisStreamName}'
+          - !Sub 'arn:aws:firehose:${AWS::Region}:${AWS::AccountId}:deliverystream/${KinesisStreamName}'
+
+

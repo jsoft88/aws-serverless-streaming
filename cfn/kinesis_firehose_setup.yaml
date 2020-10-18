@@ -1,0 +1,105 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Provisions AWS Serverless API resourcs for the Simple EC2 Inventory sample solution on AWS
+Transform: 'AWS::Serverless-2016-10-31'
+Parameters:
+  DeliveryStreamName:
+    Description: "Name for the stream delivery"
+    Type: String
+    Default: aurora-db-stream-delivery
+  DeliveryStreamType:
+    Description: "Type of the stream delivery"
+    Type: String
+    Default: KinesisStreamAsSource
+  BufferDurationSeconds:
+    Type: String
+    Description: How many seconds to buffer data in firehose
+    Default: "0"
+  BufferSizeMBs:
+    Type: String
+    Description: How many MBs of data to buffer in firehose
+    Default: "0"
+  FirehoseS3DestinationArn:
+    Type: String
+    Description: ARN of the bucket where data will be placed in S3
+Resources:
+  KinesisDataFirehoseS3:
+    Type: AWS::KinesisFirehose::DeliveryStream
+    Properties:
+      DeliveryStreamName: !Ref DeliveryStreamName
+      DeliveryStreamType: !Ref DeliveryStreamType
+      S3DestinationConfiguration:
+        RoleARN: !GetAtt [!Ref KinesisFirehoseToS3Role, 'Arn']
+        Prefix: "kinesis_firehose_"
+        BucketARN: !Ref FirehoseS3DestinationArn
+        BufferingHints:
+          IntervalInSeconds: !Ref BufferDurationSeconds
+          SizeInMBs: !Ref BufferSizeMBs
+  LambdaToKinesisFirehoseRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: AssumeRolePutKinesisFirehose
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - arn:aws:lambda
+          Action: 
+            - 'sts:AssumeRole'
+      Description: Allow lambda service to assume role which allows to write to kinesis data firehose
+      Policies:
+      - PolicyName: KinesisFirehosePut
+        PolicyDocument:
+          Version: 2012-10-17,
+          Statement:
+          - Effect: Allow,
+            Action:
+            - firehose:PutRecord
+            - firehose:PutRecordBatch
+            - firehose:UpdateDestination
+            - firehose:DeleteDeliveryStream
+        Resource: !Sub "arn:aws:firehose:${AWS::Region}:${AWS::AccountId}:deliverystream/${DeliveryStreamName}"
+  KinesisFirehoseToS3Role:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: AssumeRoleS3Access
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - firehose.amazonaws.com
+          Action:
+          - 'sts:AssumeRole'
+        Description: Allow firehose to assume role to access S3
+        Policies:
+          - PolicyName: S3Access
+            PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+            - Effect: Allow,
+              Action:
+              - s3:AbortMultipartUpload
+              - s3:GetBucketLocation
+              - s3:GetObject
+              - s3:ListBucket
+              - s3:ListBucketMultipartUploads
+              - s3:PutObject
+            Resource:
+            - !Sub "${FirehoseS3DestinationArn}"
+Outputs:
+  KinesisStreamStackName:
+    Value: !Ref AWS::StackName
+    Export:
+      Name: !Join [':', [!Ref AWS::StackName, 'StackName']]
+  KinesisFirehoseDeliveryStreamName:
+    Value: !Ref DeliveryStreamName
+    Export:
+      Name: !Join [':', [!Ref AWS::StackName, 'DeliveryStreamName']]
+  KinesisFirehoseRegion:
+    Value: !Ref AWS::Region
+    Export:
+      Name: !Join [':', [!Ref AWS::StackName, 'KinesisFirehoseRegion']]
+

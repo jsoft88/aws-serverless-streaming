@@ -1,0 +1,186 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Provisions AWS Serverless API resourcs for the Simple EC2 Inventory sample solution on AWS
+Mappings:
+  SubnetConfig:
+    VPC:
+      CIDR: "10.0.0.0/16"
+    PublicNetwork1:
+      CIDR: "10.0.1.0/24"
+    PrivateNetwork1:
+      CIDR: "10.0.2.0/24"
+    PublicNetwork2:
+      CIDR: "10.0.2.0/24"
+    PrivateNetwork2:
+      CIDR: "10.0.1.0/24"
+Resources:
+  VPC:
+    Type: "AWS::EC2::VPC"
+    Properties:
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      CidrBlock: !FindInMap ['SubnetConfig', 'VPC', 'CIDR']
+
+  PublicSubnetOne:
+    Type: "AWS::EC2::Subnet"
+    Properties:
+      AvailabilityZone:
+        Fn::Select: 
+          - 0
+          - Fn::GetAZs: !Ref 'AWS::Region'
+      VpcId: !Ref 'VPC'
+      CidrBlock: !FindInMap ['SubnetConfig', 'PublicNetwork1', 'CIDR']
+      MapPublicIpOnLaunch: true
+
+  PrivateSubnetOne:
+    Type: "AWS::EC2::Subnet"
+    Properties:
+      AvailabilityZone: 
+        Fn::Select:
+          - 1
+          - Fn::GetAZs: !Ref 'AWS::Region'
+      VpcId: !Ref 'VPC'
+      CidrBlock: !FindInMap ['SubnetConfig', 'PrivateNetwork1', 'CIDR']
+
+  PublicSubnetTwo:
+    Type: "AWS::EC2::Subnet"
+    Properties:
+      AvailabilityZone:
+        Fn::Select:
+          - 1
+          - Fn::GetAZs: !Ref 'AWS::Region'
+      VpcId: !Ref 'VPC'
+      CidrBlock: !FindInMap ['SubnetConfig', 'PublicNetwork2', 'CIDR']
+      MapPublicIpOnLaunch: true
+
+  PrivateSubnetTwo:
+    Type: "AWS::EC2::Subnet"
+    Properties:
+      AvailabilityZone:
+        Fn::Select:
+          - 0
+          - Fn::GetAZs: !Ref 'AWS::Region'
+      VpcId: !Ref 'VPC'
+      CidrBlock: !FindInMap ['SubnetConfig', 'PrivateNetwork1', 'CIDR']
+
+  InternetGateway:
+    Type: "AWS::EC2::InternetGateway"
+  GatewayAttachment:
+    Type: "AWS::EC2::VPCGatewayAttachment"
+    Properties:
+      VpcId: !Ref 'VPC'
+      InternetGatewayId: !Ref InternetGateway
+
+  PublicRouteTable:
+    Type: "AWS::EC2::RouteTable"
+    Properties:
+      VpcId: !Ref 'VPC'
+
+  PublicRoute:
+    Type: "AWS::EC2::Route"
+    DependsOn: GatewayAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: '0.0.0.0/0'
+      GatewayId: !Ref InternetGateway
+
+  PublicSubnetOneRouteTableAssociation:
+    Type: "AWS::EC2::SubnetRouteTableAssociation"
+    Properties:
+      SubnetId: !Ref PublicSubnetOne
+      RouteTableId: !Ref PublicRouteTable
+
+  PublicSubnetTwoRouteTableAssociation:
+    Type: "AWS::EC2::SubnetRouteTableAssociation"
+    Properties:
+      SubnetId: !Ref PublicSubnetTwo
+      RouteTableId: !Ref PublicRouteTable
+
+  NatGatewayOneAttachment:
+    Type: "AWS::EC2::EIP"
+    DependsOn: GatewayAttachment
+    Properties:
+      Domain: vpc
+
+  NatGatewayTwoAttachment:
+    Type: "AWS::EC2::EIP"
+    DependsOn: GatewayAttachment
+    Properties:
+      Domain: vpc
+
+  NatGatewayOne:
+    Type: "AWS::EC2::NatGateway"
+    Properties:
+      AllocationId: !GetAtt NatGatewayOneAttachment.AllocationId
+      SubnetId: !Ref PublicSubnetOne
+
+  NatGatewayTwo:
+    Type: "AWS::EC2::NatGateway"
+    Properties:
+      AllocationId: !GetAtt NatGatewayTwoAttachment.AllocationId
+      SubnetId: !Ref PublicSubnetTwo
+
+  PrivateRouteTableOne:
+    Type: "AWS::EC2::RouteTable"
+    Properties: 
+      VpcId: !Ref VPC
+
+  PrivateRouteOne:
+    Type: "AWS::EC2::Route"
+    Properties:
+      RouteTableId: !Ref PrivateRouteTableOne
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGatewayOne
+
+  PrivateRouteTableOneAssociation:
+    Type: "AWS::EC2::SubnetRouteTableAssociation"
+    Properties:
+      RouteTableId: !Ref PrivateRouteTableOne
+      SubnetId: !Ref PrivateSubnetOne
+
+  PrivateRouteTableTwo:
+    Type: "AWS::EC2::RouteTable"
+    Properties:
+      VpcId: !Ref VPC
+
+  PrivateRouteTwo:
+    Type: "AWS::EC2::Route"
+    Properties:
+      RouteTableId: !Ref PrivateRouteTableTwo
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGatewayTwo
+
+  PrivateRouteTableTwoAssociation:
+    Type: "AWS::EC2::SubnetRouteTableAssociation"
+    Properties:
+      RouteTableId: !Ref PrivateRouteTableTwo
+      SubnetId: !Ref PrivateSubnetTwo
+
+Outputs:
+  NetworkStackName:
+    Value: !Ref AWS::StackName
+    Export:
+      Name: !Join [':', [!Ref AWS::StackName, 'StackName'] ]
+  VPCId:
+    Value: !Ref VPC
+    Export:
+      Name: !Join [ ':', [ !Ref AWS::StackName, 'VPCId'] ]
+  VPCSubnetCidr:
+    Value: !FindInMap ['SubnetConfig', 'VPC', 'CIDR']
+    Export:
+      Name: !Join [ ':', [!Ref AWS::StackName, 'VPCSubnetCidr' ] ]
+  PublicNetworkOne:
+    Value: !Ref PublicSubnetOne
+    Export:
+      Name: !Join [ ':', [ !Ref AWS::StackName, 'PublicNetworkOne'] ]
+  PrivateNetworkOne:
+    Value: !Ref PrivateSubnetOne
+    Export:
+      Name: !Join [ ':', [ !Ref AWS::StackName, 'PrivateNetworkOne' ] ]
+  PublicNetworkTwo:
+    Value: !Ref PublicSubnetTwo
+    Export:
+      Name: !Join [ ':', [ !Ref AWS::StackName, 'PublicNetworkTwo'] ]
+  PrivateNetworkTwo:
+    Value: !Ref PrivateSubnetTwo
+    Export:
+      Name: !Join [ ':', [ !Ref AWS::StackName, 'PrivateNetworkTwo' ] ]

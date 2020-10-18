@@ -1,0 +1,131 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Provisions AWS Serverless API resourcs for the Simple EC2 Inventory sample solution on AWS
+Transform: 'AWS::Serverless-2016-10-31'
+Parameters:
+  AppName:
+    Description: "Application Name"
+    Type: String
+    Default: serverless db streaming
+  EnvType:
+    Description: "Environment type (example: dev, test, prod)"
+    Type: String
+    Default: dev
+  DBClusterName:
+    Description: "Aurora RDS cluster name"
+    Type: String
+    Default: serverless-db-cluster
+  DatabaseName:
+    Description: "Aurora RDS database name"
+    Type: String
+    Default: orders-db
+  DBMasterUserName:
+    AllowedPattern: "[a-zA-Z0-9_]+"
+    ConstraintDescription: must be between 1 to 16 alphanumeric characters.
+    Description: The database admin account user name, between 1 to 16 alphanumeric characters.
+    MaxLength: '16'
+    MinLength: '1'
+    Type: String
+    Default: admin_user
+  NetworkStackName:
+    Type: String
+    Description: Stack name of the Cloudformation network stack
+  DBSecretSSMKey:
+    Type: String
+    Description: The key to SSM where DB Secret is stored for the provided username
+    Default: ""
+Conditions:
+  CreateSecretForDB: !Equals [!Ref DBSecretSSMKey, ""]
+Resources:
+  DBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Cloudformation managed DB subnet group
+      SubnetIds:
+      - Fn::ImportValue: !Sub "${NetworkStackName}:PrivateNetworkOne"
+      - Fn::ImportValue: !Sub "${NetworkStackName}:PrivateNetworkTwo"
+    # This condition will always eval to False as it is not possible to generate a secure string in SSM parameter store
+    DBSecret:
+      Type: AWS::SecretsManager::Secret
+      Condition: !Ref CreateSecretForDB
+      Properties:
+        Name: !Sub "${EnvType}-AuroraUserSecret"
+        Description: RDS database auto-generated user password
+        GenerateSecretString:
+          SecretStringTemplate: !Sub '{"username": "${DBMasterUserName"}'
+          GenerateStringKey: "password"
+          PasswordLength: 30
+          ExcludeCharacters: '"@\/'
+        Tags:
+          - key: AppName
+            Value: !Ref AppName
+    RDSCluster:
+      Type: AWS::RDS::DBCluster
+      Properties:
+        DBClusterIdentifier: !Ref DBClusterName
+        MasterUsername: !Ref DBMasterUserName
+        MasterUserPassword: '{{resolve:ssm-secure:${DBPasswordSecretParamKey}}}'
+        DatabaseName: !Ref DatabaseName
+        Engine: aurora
+        EngineMode: serverless
+        EngineVersion: 5.6.10a
+        ScalingConfiguration:
+          AutoPause: true
+          MaxCapacity: 4
+          MinCapacity: 1
+          SecondsUntilAutoPause: 900 # 15 minutes
+        DBSubnetGroup:
+          Ref: DBSubnetGroup
+Outputs:
+  StackName:
+    Description: Aurora stack name
+    Value: !Ref AWS::StackName
+    Export:
+      Name: !Join [':', [!Sub ${AWS::StackName}, 'StackName']]
+
+  DatabaseName:
+    Description: Aurora Database Name
+    Value: !Ref DatabaseName
+    Export:
+      Name: !Join [':', [!Sub ${AWS::StackName}, 'DatabaseName']]
+
+  DatabaseClusterArn:
+    Description: Aurora Cluster ARN
+    Value: !Sub arn:aws:rds:${AWS::Region}:${AWS::AccountId}:cluster:${DBClusterName}
+    Export:
+      Name: !Join [':', [!Sub ${AWS::StackName}, 'DatabaseClusterArn']]
+
+  DatabaseClusterID:
+    Description: Aurora Cluster ID
+    Value: !Ref RDSCluster
+    Export:
+      Name: !Join [':', [!Sub ${AWS::StackName}, 'DatabaseClusterID']]
+
+  AuroraDbURL:
+    Description: Aurora Database URL
+    Value: !GetAtt RDSCluster.Endpoint.Address
+    Export:
+      Name: !Join [':', [!Sub ${AWS::StackName}, 'DatabaseURL']]
+
+  DatabaseMasterUserName:
+    Description: Aurora Database User
+    Value: !Ref DBMasterUserName
+    Export:
+      Name: !Join [':', [!Sub ${AWS::StackName}, 'DatabaseMasterUserName']]
+
+  DatabasePassword:
+    Description: Output database secret
+    Value: !GetAtt [!Ref RDSCluster, 'MasterUserPassword']
+    Export:
+      Name: !Join [':', [!Sub ${AWS::StackName}, 'DatabaseMasterUserPassword']]
+
+  DatabaseHost:
+    Description: Endpoint to connect to
+    Value: !GetAtt [!Ref RDSCluster, 'Endpoint.Address']
+    Export:
+      Name: !Join [ ':', [!Sub ${AWS::StackName}, 'DatabaseHost']]
+
+  DatabasePort:
+    Description: Port where database server accepts connections
+    Value: !GetAtt [!Ref RDSCluster, 'Endpoint.Port']
+    Export:
+      Name: !Join [ ':', [!Sub ${AWS::StackName}, 'DatabasePort']]

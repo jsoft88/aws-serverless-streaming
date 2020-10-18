@@ -1,0 +1,183 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Setup fargate
+Transform: 'AWS::Serverless-2016-10-31'
+Parameters:
+  NetworkStackName:
+    Type: String
+    Description: Name of the stack creating network for the architecture
+  DBStackName:
+    Type: String
+    Description: Stack name for Aurora DB
+  Image:
+    Type: String
+    Description: Name of the docker image to use
+  ContainerCpu:
+    Type: Number
+    Default: 0.25
+    Description: 1024 is 1 CPU; tied to the value for memory
+  ContainerMemory:
+    Type: Number
+    Default: 1024
+    Description: Amount of memory in MBs to assign to container
+  Family:
+    Type: String
+    Description: Name of the family where this task is registed. Needed for versioning.
+  KinesisStreamName:
+    Type: String
+    Description: Name of kinesis stream where changes will be pushed
+  DBUsername:
+    Type: String
+    Description: Username of the database to connect to
+  DBUsernameEnvName:
+    Type: String
+    Description: Name for the env variable that will store the username
+  DBPasswordEnvName:
+    Type: String
+    Description: Name for the env variable that will store the password
+  DBHostEnvName:
+    Type: String
+    Description: Name for the env variable that will store the host or ip of the database server
+  DBPortEnvName:
+    Type: String
+    Description: Name for the env variable that will store the port of the database server
+  KinesisStreamNameEnvName:
+    Type: String
+    Description: Name for the env variable that will store the name of the kinesis stream where changes are pushed
+  CaptureDBSchema:
+    Type: String
+    Description: From which DB schema are we capturing the changes
+  CaptureDBTable:
+    Type: String
+    Description: From which DB table are we capturing the changes
+  CaptureDBSchemaEnvName:
+    Type: String
+    Description: Name for the env variable that will store the value for schema we capture the changes for
+  CaptureDBTableEnvName:
+    Type: String
+    Description: Name for the env variable that will store the value for table we capture the changes for
+Resources:
+  FargateContainerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Access Fargate container from AuroraDB
+      VpcId: Fn::ImportValue: !Sub "${NetworkStackName}:VPCId"
+      SecurityGroupIngress:
+        - CidrIp: Fn::ImportValue: !Sub "${NetworkStackName}:VPCSubnetCidr"
+          IpProtocol: -1
+
+  FetcherEcsServiceDefinition:
+    Type: AWS::ECS::Service
+    Properties:
+      CapacityProviderStrategy: FARGATE
+      LaunchType: FARGATE
+      NetworkConfiguration:
+        AwsVpcConfiguration:
+          AssignPublicIp: DISABLED
+          SecurityGroups:
+            - Fn::GetAtt: [!Ref FargateContainerSecurityGroup, "GroupId"]
+          Subnets:
+            - Fn::ImportValue: !Sub "${NetworkStackName}:PrivateNetworkOne"
+            - Fn::ImportValue: !Sub "${NetworkStackName}:PrivateNetworkTwo"
+      PlatformVersion: LATEST
+      TaskDefinition: !Ref FetcherTaskDefinition
+
+  FetcherTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Cpu: !Ref ContainerCpu
+      Memory: !Ref ContainerMemory
+      RequiresCompatibilities:
+        - FARGATE
+      ExecutionRoleArn: Fn::GetAtt: [!Ref EcsTaskRole, "Arn"]
+      NetworkMode: awsvpc
+      ContainerDefinitions:
+        - Name: !Ref Family
+          Cpu: !Ref ContainerCpu
+          Memory: !Ref ContainerMemory
+          Image: !Ref Image
+          Environment:
+            - Name: !Ref KinesisStreamNameEnvName
+              Value: !Ref KinesisStreamName
+            - Name: !Ref DBUsernameEnvName
+              Value: Fn::ImportValue: !Sub "${DBStackName}:DatabaseMasterUsername"
+            - Name: !Ref DBPasswordEnvName
+              Value: Fn::ImportValue: !Sub "${DBStackName}:DatabaseMasterUserPassword"
+            - Name: !Ref DBHostEnvName
+              Value: Fn::ImportValue: !Sub "${DBStackName}:DatabaseHost"
+            - Name: !Ref DBPortEnvName
+              Value: Fn::ImportValue: !Sub "${DBStackName}:DatabasePort"
+            - Name: !Ref CaptureDBSchemaEnvName
+              Value: !Ref CaptureDBSchema
+            - Name: !Ref CaptureDBTableEnvName
+              Value: !Ref CaptureDBTable
+  EcsServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - ecs.amazonaws.com
+            - ecs-tasks.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Path: /
+      Policies:
+      - PolicyName: ecs-service
+        PolicyDocument:
+          Statement:
+          - Effect: Allow
+            Action:
+            - 'ec2:AttachNetworkInterface'
+            - 'ec2:CreateNetworkInterface'
+            - 'ec2:CreateNetworkInterfacePermission'
+            - 'ec2:DeleteNetworkInterface'
+            - 'ec2:DeleteNetworkInterfacePermission'
+            - 'ec2:Describe*'
+            - 'ec2:DetachNetworkInterface'
+            - 'iam:PassRole'
+            - 'ecr:GetAuthorizationToken'
+            - 'ecr:BatchCheckLayerAvailability'
+            - 'ecr:GetDownloadUrlForLayer'
+            - 'ecr:BatchGetImage'
+        Resource: '*'
+
+  EcsTaskRole:
+    Type: AWS::IAM:Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - ecs-task.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Path: /
+      Policies:
+      - PolicyName: AmazonEcsTaskRolePolicy
+        PolicyDocument:
+          Statement:
+          - Effect: Allow
+            Action:
+            - 'ecr:GetAuthorizationToken'
+            - 'ecr:BatchCheckLayerAvailability'
+            - 'ecr:GetDownloadUrlForLayer'
+            - 'ecr:BatchGetImage'
+          Resource: '*'
+Outputs:
+  FargateStackName:
+    Value: !Ref AWS::StackName
+    Export:
+      Name: !Join [ ':', [!Ref AWS::StackName, 'StackName']]
+  EcsServiceRole:
+    Description: REPLACE_ME_ECS_SERVICE_ROLE_ARN
+    Value: !GetAtt 'EcsServiceRole.Arn'
+    Export:
+      Name: !Join [ ':', [ !Ref AWS::StackName, 'EcsServiceRole' ] ]
+  ECSTaskRole:
+    Description: REPLACE_ME_ECS_TASK_ROLE_ARN
+    Value: !GetAtt 'ECSTaskRole.Arn'
+    Export:
+      Name: !Join [ ':', [ !Ref AWS::StackName, 'ECSTaskRole' ] ]

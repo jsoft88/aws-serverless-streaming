@@ -1,0 +1,39 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Setup fargate
+Transform: 'AWS::Serverless-2016-10-31'
+Parameters:
+  KinesisStreamName:
+    Type: String
+    Description: Name for the stream created for fargate to put data into
+
+Resources:
+  KinesisStreamAuroraProducer:
+    Type: AWS::Kinesis::Stream
+    Properties:
+      Name: AuroraDB Streams
+      RetentionPeriodHours: 1
+      ShardCount: 1
+  RoleFargateKinesis:
+    Type: AWS::IAM:Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - ecs.amazonaws.com
+            - ecs-task.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Path: /
+      Policies:
+      - PolicyName: AmazonEcsPutRecordToKinesis
+        PolicyDocument:
+          Statement:
+          - Effect: Allow
+            Action:
+            - 'kinesis:GetShardIterator'
+            - 'kinesis:PutRecords'
+            - 'kinesis:DescribeStreamSummary'
+            - 'kinesis:ListStreams'
+          Resource: !Sub 'arn:aws:kinesis:${AWS::Region}:${AWS::AccountId}:stream/${KinesisStreamName}'
