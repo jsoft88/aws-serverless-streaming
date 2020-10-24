@@ -73,6 +73,7 @@ Resources:
           - Fn::ImportValue: !Sub "${NetworkStackName}:PrivateNetworkOne"
           - Fn::ImportValue: !Sub "${NetworkStackName}:PrivateNetworkTwo"
       Runtime: !Ref LambdaRuntime
+      Role: !GetAtt LambdaRole.Arn
 
   LambdaRole:
     Type: AWS::IAM::Role
