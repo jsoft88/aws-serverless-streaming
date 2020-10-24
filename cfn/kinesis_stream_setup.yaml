@@ -10,7 +10,7 @@ Resources:
   KinesisStreamAuroraProducer:
     Type: AWS::Kinesis::Stream
     Properties:
-      Name: AuroraDB Streams
+      Name: !Ref KinesisStreamName
       RetentionPeriodHours: 1
       ShardCount: 1
   RoleFargateKinesis:

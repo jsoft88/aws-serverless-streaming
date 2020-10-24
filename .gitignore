@@ -316,3 +316,10 @@ test/integration/integration-setup-stdout
 test/integration/integration-setup-stderr
 lambda/.idea/.gitignore
 .idea/.gitignore
+test/integration/lambda-stack-stdout
+test/integration/lambda-stack-stderr
+test/integration/kinesis-stream-stack-stdout
+test/integration/kinesis-stream-stack-stderr
+test/integration/kinesis-firehose-stack-stdout
+test/integration/kinesis-firehose-stack-stderr
+lambda/.idea/vcs.xml

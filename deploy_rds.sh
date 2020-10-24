@@ -107,7 +107,7 @@ if [ "$env_type" != "integration" -o "$deployment" = "kinesis-firehose-stack" ];
 	        ParameterKey="BufferDurationSeconds",ParameterValue="$lambda_kinesis_firehose_batch_seconds" \
 	        ParameterKey="BufferSizeMBs",ParameterValue="$lambda_kinesis_firehose_batch_mbs" \
 	        ParameterKey="FirehoseS3DestinationArn",ParameterValue="$lambda_kinesis_firehose_s3_destination_arn" \
-	    --capabilities CAPABILITY_AUTO_EXPAND
+	    --capabilities CAPABILITY_AUTO_EXPAND,CAPABILITY_NAMED_IAM
 
 	sleep 180
 fi

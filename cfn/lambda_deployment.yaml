@@ -39,9 +39,9 @@ Resources:
       GroupDescription: Security group for lambda reading from Kinesis stream
       GroupName: LambdaKinesisStreamSG
       SecurityGroupEgress:
-      - CidrIp: 0.0.0.0/0
-      - ToPort: -1
-      - IpProtocol: -1
+        - CidrIp: 0.0.0.0/0
+        - ToPort: -1
+        - IpProtocol: -1
 
   LambdaKinesisStreamEventSourceMapping:
     Type: AWS::Lambda::EventSourceMapping
@@ -68,10 +68,10 @@ Resources:
           KinesisFirehoseName: !Ref KinesisFirehoseName
       VpcConfig:
         SecurityGroupIds:
-        - !Ref LambdaSecurityGroup
+          - !Ref LambdaSecurityGroup
         SubnetIds:
-        - Fn::ImportValue: !Sub "${NetworkStackName}:PrivateNetworkOne"
-        - Fn::ImportValue: !Sub "${NetworkStackName}:PrivateNetworkTwo"
+          - Fn::ImportValue: !Sub "${NetworkStackName}:PrivateNetworkOne"
+          - Fn::ImportValue: !Sub "${NetworkStackName}:PrivateNetworkTwo"
       Runtime: !Ref LambdaRuntime
 
   LambdaRole:
@@ -79,28 +79,26 @@ Resources:
     Properties:
       AssumeRolePolicyDocument:
         Statement:
-        - Effect: Allow
-          Principal:
-            Service:
-            - lambda.amazonaws.com
-          Action:
-          - sts:AssumeRole
-      Path: /
-      Policies:
-      - PolicyName: AmazonEcsPutRecordToKinesis
-        PolicyDocument:
-          Statement:
           - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
             Action:
-            - 'kinesis:GetShardIterator'
-            - 'kinesis:GetRecords'
-            - 'kinesis:DescribeStreamSummary'
-            - 'kinesis:ListStreams'
-            - 'firehose:PutRecord'
-            - 'firehose:PutRecordBatch'
-            - 'firehose:UpdateDestination'
-          Resource:
-          - !Sub 'arn:aws:kinesis:${AWS::Region}:${AWS::AccountId}:stream/${KinesisStreamName}'
-          - !Sub 'arn:aws:firehose:${AWS::Region}:${AWS::AccountId}:deliverystream/${KinesisStreamName}'
-
-
+              - sts:AssumeRole
+        Path: /
+        Policies:
+          - PolicyName: AmazonEcsPutRecordToKinesis
+            PolicyDocument:
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - 'kinesis:GetShardIterator'
+                    - 'kinesis:GetRecords'
+                    - 'kinesis:DescribeStreamSummary'
+                    - 'kinesis:ListStreams'
+                    - 'firehose:PutRecord'
+                    - 'firehose:PutRecordBatch'
+                    - 'firehose:UpdateDestination'
+              Resource:
+                - !Sub 'arn:aws:kinesis:${AWS::Region}:${AWS::AccountId}:stream/${KinesisStreamName}'
+                - !Sub 'arn:aws:firehose:${AWS::Region}:${AWS::AccountId}:deliverystream/${KinesisStreamName}'

@@ -9,15 +9,15 @@ Test deployment of Network stack
     Should Be Equal As Integers           ${network_stack_status.rc}             0
 
 Test deployment of Kinesis stream stack
-    ${kinesis_stream_stack_status} =      Run Process                            bash                                                                                                                                                           ../../deploy_rds.sh     integration                                                                            kinesis-stream-stack                      shell=True              stderr=${CURDIR}/kinesis-stream-stack-stderr       stdout=${CURDIR}/kinesis-stream-stack-stdout
+    ${kinesis_stream_stack_status} =      Run Process                            bash                                                                                                                                                           ./deploy_rds.sh     integration                                                                            kinesis-stream-stack                      shell=True              stderr=${CURDIR}/kinesis-stream-stack-stderr       stdout=${CURDIR}/kinesis-stream-stack-stdout    cwd=${CURDIR}/../../
     Should Be Equal As Integers           ${kinesis_stream_stack_status.rc}      0
 
 Test deployment of Kinesis firehose stack
-    ${kinesis_firehose_stack_status} =    Run Process                            bash                                                                                                                                                           ../../deploy_rds.sh     integration                                                                           kinesis-firehose-stack                     shell=True              stderr=${CURDIR}/kinesis-firehose-stack-stderr     stdout=${CURDIR}/kinesis-firehose-stack-stdout
+    ${kinesis_firehose_stack_status} =    Run Process                            bash                                                                                                                                                           ./deploy_rds.sh     integration                                                                           kinesis-firehose-stack                     shell=True              stderr=${CURDIR}/kinesis-firehose-stack-stderr     stdout=${CURDIR}/kinesis-firehose-stack-stdout  cwd=${CURDIR}/../../
     Should Be Equal As Integers           ${kinesis_firehose_stack_status.rc}    0
 
 Test deployment of Lambda stack
-    ${lambda_stack_status} =              Run Process                            bash                                                                                                                                                           ../../deploy_rds.sh     integration                                                                            lambda-stack                              shell=True              stderr=${CURDIR}/lambda-stack-stderr               stdout=${CURDIR}/lambda-stack-stdout
+    ${lambda_stack_status} =              Run Process                            bash                                                                                                                                                           ./deploy_rds.sh     integration                                                                            lambda-stack                              shell=True              stderr=${CURDIR}/lambda-stack-stderr               stdout=${CURDIR}/lambda-stack-stdout            cwd=${CURDIR}/../../
     Should Be Equal As Integers           ${lambda_stack_status.rc}              0
 
 E2E run must end with files in s3
