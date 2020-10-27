@@ -323,3 +323,5 @@ test/integration/kinesis-stream-stack-stderr
 test/integration/kinesis-firehose-stack-stdout
 test/integration/kinesis-firehose-stack-stderr
 lambda/.idea/vcs.xml
+test/integration/docker-compose-stderr
+test/integration/docker-compose-stdout

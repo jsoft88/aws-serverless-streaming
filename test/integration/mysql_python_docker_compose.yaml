@@ -20,11 +20,5 @@ services:
       - '3306:3306'
     volumes:
       - /tmp:/var/lib/mysql:rw
-      - ./sql:/tmp:ro
-    command: mysqld --datadir=/var/lib/mysql --user=root --server-id=1 --log-bin=/var/lib/mysql/mysql-bin.log --binlog_do_db=test_db && mysql -u root < /tmp/init_scripts.sql
-
-  PlainAlpine:
-    image: alpine:latest
-    command: a=$(cat ./sql/inserts.sql | tr -d '\n') && mysql -h "MySQL" -u python -p123456 -e "$a"
-    depends_on:
-      - "MySQL"
+      - ./sql:/tmp:rw
+    command: bash -c "mysqld --initialize-insecure && mysqld --datadir=/var/lib/mysql --user=root --server-id=1 --log-bin=/var/lib/mysql/mysql-bin.log --binlog_do_db=test_db && mysql -u root < /tmp/init_scripts.sql && mysql -u root < /tmp/inserts.sql"

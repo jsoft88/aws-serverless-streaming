@@ -11,9 +11,24 @@ function error() {
 env_type=$1
 deployment=$2
 echo "WORKDIR IS: $(pwd)"
-if [ "$env_type" = "integration" ]; then export ENPOINT_URL_FLAG="--endpoint-url http://localhost:4566"; fi
 
 . "./config_${env_type}.sh"
+
+if [ "$env_type" = "integration" ];
+then
+	export ENPOINT_URL_FLAG="--endpoint-url http://localhost:4566";
+	aws s3api head-bucket --bucket $lambda_kinesis_stream_processor_bucket $ENPOINT_URL_FLAG || aws s3 mb $ENPOINT_URL_FLAG s3://$lambda_kinesis_stream_processor_bucket;
+	aws s3api head-bucket --bucket $lambda_kinesis_firehose_s3_bucket $ENPOINT_URL_FLAG || aws s3 mb $ENPOINT_URL_FLAG s3://$lambda_kinesis_firehose_s3_bucket;
+
+	# Build lambda processor JAR
+
+	mvn clean package -DskipTests=true -DoutputDirectory=./lambda/target/ -f ./lambda/pom.xml
+	# upload JAR to S3
+	aws s3 cp ./lambda/target/serverlessDBStreaming-1.0-SNAPSHOT.jar "s3://$lambda_kinesis_stream_processor_bucket/$lambda_kinesis_stream_processor_prefix" $ENPOINT_URL_FLAG
+
+	# register secret for db
+	# aws ssm put-parameter --type SecureString --value 123456 --name $db_password_secret_ssm_key $ENDPOINT_URL
+fi
 
 if [ "$env_type" != "integration" -o "$deployment" = "network-stack" ]; then
 	aws cloudformation create-stack \
@@ -77,8 +92,8 @@ if [ "$env_type" != "integration" ]; then
 	        ParameterKey="DBHostEnvName",ParameterValue="$fetcher_env_db_host" \
 	        ParameterKey="DBPortEnvName",ParameterValue="$fetcher_env_db_port" \
 	        ParameterKey="KinesisStreamEnvName",ParameterValue="$fetcher_env_kinesis_stream_name" \
-	        ParameterKey="CaptureDBSchema",ParameterValue="fetcher_env_capture_from_schema" \
-	        ParameterKey="CaptureDBTable",ParameterValue="fetcher_env_capture_from_table" \
+	        ParameterKey="CaptureDBSchema",ParameterValue="$fetcher_env_capture_from_schema" \
+	        ParameterKey="CaptureDBTable",ParameterValue="$fetcher_env_capture_from_table" \
 	    --capabilities CAPABILITY_IAM
 
 	sleep 180
