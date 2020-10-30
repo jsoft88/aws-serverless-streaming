@@ -8,7 +8,7 @@ touch env.integration
 echo "$fetcher_env_db_username=$db_master_username" > env.integration
 echo "$fetcher_env_db_password=123456" >> env.integration
 echo "$fetcher_env_db_host=127.0.0.1" >> env.integration
-echo "$fetcher_env_db_port=33060" >> env.integration
+echo "$fetcher_env_db_port=3306" >> env.integration
 echo "$fetcher_env_kinesis_stream_name=$delivery_stream_name" >> env.integration
 echo "$fetcher_env_capture_from_schema=test_db" >> env.integration
 echo "$fetcher_env_capture_from_table=test_table" >> env.integration

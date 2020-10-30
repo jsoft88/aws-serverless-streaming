@@ -6,8 +6,10 @@ services:
       dockerfile: Dockerfile-integration
     command: ["--user", "${fetcher_env_db_username}", "--password", "${fetcher_env_db_password}", "--host", "${fetcher_env_db_host}", "--port", "${fetcher_env_db_port}", "--kinesis-stream-name", "${fetcher_env_kinesis_stream_name}", "--capture-from-schema", "${fetcher_env_capture_from_schema}", "--capture-from-table", "${fetcher_env_capture_from_table}"]
     depends_on:
-      - MySQL
+      - "MySQL"
     env_file: ./env.integration
+    environment:
+      DB_HOST: MySQL
 
   MySQL:
     image: mysql_mock:latest

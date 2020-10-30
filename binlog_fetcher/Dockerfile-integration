@@ -1,9 +1,10 @@
-FROM ubuntu:latest
-RUN apt-get update -y
-RUN apt-get install -y python3-pip python3-dev build-essential
-RUN pip3 install --upgrade pip
+FROM python:3.7
+#RUN apt-get update -y
+#RUN apt-get install -y python3-pip python3-dev build-essential git-all
+#RUN pip3 install --upgrade pip
 COPY requirements.txt /tmp
 COPY fetcher.py /tmp
 WORKDIR /tmp
 RUN pip3 install -r ./requirements.txt
-ENTRYPOINT ["python3","fetcher.py"]
+RUN git clone https://github.com/vishnubob/wait-for-it
+ENTRYPOINT ["./wait-for-it/wait-for-it.sh", "MySQL:3306", "--", "python3", "fetcher.py"]
