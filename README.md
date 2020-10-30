@@ -28,6 +28,9 @@ You could also run `aws configure --profile test_profile` and fill in the fields
 Finally, you can also run it in your actual AWS account (will cost you money), just generate the access key and secret access key and configure the profile with the CLI. This would
 be safer than storing this in the `config_${env}.sh` that you can find in the root of this repo.
 
+# Running local integration test
+As simple as *cd* ing into test/integration and executing the following command: `robot integration_test.robot`.
+
 # Future work
 * Make use of the data API to generate data into AuroraDB and have some data written to S3.
 * Add cloudformation templates that will deploy glue crawlers and enable Athena analytics.
