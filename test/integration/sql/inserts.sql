@@ -1,5 +1,3 @@
-USE test_db;
-
 INSERT INTO test_db.test_table(order_id, customer_id,article_id,quantity,unit_price) VALUES(NULL, 'c1', 'nmd', 10, 100);
 INSERT INTO test_db.test_table(order_id, customer_id,article_id,quantity,unit_price) VALUES(NULL, 'c1', 'yze', 1, 800);
 INSERT INTO test_db.test_table(order_id, customer_id,article_id,quantity,unit_price) VALUES(NULL, 'c2', 'rbk', 15, 100);

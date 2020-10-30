@@ -14,7 +14,8 @@ def main(host, port, user, password, kinesis_stream_name, capture_from_schema, c
       "host": host,
       "port": port,
       "user": user,
-      "passwd": password},
+      "passwd": password,
+      "db": capture_from_schema},
     server_id=100,
     blocking=True,
     resume_stream=True,
@@ -30,26 +31,29 @@ def main(host, port, user, password, kinesis_stream_name, capture_from_schema, c
       }
 
       kinesis.put_record(StreamName=kinesis_stream_name, Data=json.dumps(event), PartitionKey="default")
-      print json.dumps(event)
+      print(json.dumps(event))
 
 if __name__ == "__main__":
-   parser = argparse.ArgumentParser()
-   parser.add_argument('--host', dest='host')
-   parser.add_argument('--port', dest='port')
-   parser.add_argument('--user', dest='user')
-   parser.add_argument('--password', dest='password')
-   parser.add_argument('--kinesis-stream-name', dest='kinesis_stream_name')
-   parser.add_argument('--capture-from-schema', dest='capture_from_schema')
-   parser.add_argument('--capture-from-table', dest='capture_from_table')
+  print("FETCHER_ENV_VARS")
+  parser = argparse.ArgumentParser()
+  parser.add_argument('--host', action='store')
+  parser.add_argument('--port', action='store')
+  parser.add_argument('--user', action='store')
+  parser.add_argument('--password', action='store')
+  parser.add_argument('--kinesis-stream-name', action='store')
+  parser.add_argument('--capture-from-schema', action='store')
+  parser.add_argument('--capture-from-table', action='store')
 
-   args = parser.parse_args()
+  args = parser.parse_args()
+  for k, v in os.environ.items():
+    print(f'{k}={v}')
 
-   host = os.getenv[args.host]
-   port = int(os.getenv[args.port])
-   user = os.getenv[args.user]
-   password = os.getenv[args.password]
-   kinesis_stream_name = os.getenv[args.kinesis_stream_name]
-   capture_from_schema = os.getenv[args.capture_from_schema]
-   capture_from_table = os.getenv[args.capture_from_table]
+  host = os.getenv(args.host)
+  port = int(os.getenv(args.port))
+  user = os.getenv(args.user)
+  password = os.getenv(args.password)
+  kinesis_stream_name = os.getenv(args.kinesis_stream_name)
+  capture_from_schema = os.getenv(args.capture_from_schema)
+  capture_from_table = os.getenv(args.capture_from_table)
 
-   main(host, port, user, password, capture_from_schema, capture_from_table)
+  main(host, port, user, password, kinesis_stream_name, capture_from_schema, capture_from_table)

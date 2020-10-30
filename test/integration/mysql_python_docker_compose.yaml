@@ -4,21 +4,12 @@ services:
     build:
       context: ../../binlog_fetcher/
       dockerfile: Dockerfile-integration
-      args:
-        - fetcher_env_db_username=python
-        - fetcher_env_db_password=123456
-        - fetcher_env_db_host="MySQL"
-        - fetcher_env_db_port=3306
-        - fetcher_env_kinesis_stream_name=${fetcher_env_kinesis_stream_name}
-        - fetcher_env_capture_from_schema=${fetcher_env_capture_from_schema}
-        - fetcher_env_capture_from_table=${fetcher_env_capture_from_table}
+    command: ["--user", "${fetcher_env_db_username}", "--password", "${fetcher_env_db_password}", "--host", "${fetcher_env_db_host}", "--port", "${fetcher_env_db_port}", "--kinesis-stream-name", "${fetcher_env_kinesis_stream_name}", "--capture-from-schema", "${fetcher_env_capture_from_schema}", "--capture-from-table", "${fetcher_env_capture_from_table}"]
     depends_on:
-      - "MySQL"
+      - MySQL
+    env_file: ./env.integration
+
   MySQL:
-    image: mysql:5.7
+    image: mysql_mock:latest
     ports:
-      - '3306:3306'
-    volumes:
-      - /tmp:/var/lib/mysql:rw
-      - ./sql:/tmp:rw
-    command: bash -c "mysqld --initialize-insecure && mysqld --datadir=/var/lib/mysql --user=root --server-id=1 --log-bin=/var/lib/mysql/mysql-bin.log --binlog_do_db=test_db && mysql -u root < /tmp/init_scripts.sql && mysql -u root < /tmp/inserts.sql"
+      - "33060:3306"
